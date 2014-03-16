@@ -263,7 +263,7 @@ bool Frame::flip()
 bool Frame::applyKernel(Kernel *k)
 {
     unsigned char *new_img = (unsigned char *)calloc(channels*width*height, sizeof(char));
-    int n = k->get_norm();
+    float n = k->get_norm();
     int w = k->get_width();
     int h = k->get_height();
     int offx = (w-1)/2;
@@ -287,7 +287,7 @@ bool Frame::applyKernel(Kernel *k)
                 for(kx=0; kx<w; kx++) {
 
                     int imgx = (ix - offx + kx + width) % width;
-                    if(iy > 2 && iy < height-3 && ix > 2 && ix < width-3 && kx == 1 && ky == 1 && imgy != iy && imgx != ix) printf("%d %d %d %d\n", imgy, iy, imgx, ix);
+                    //if(iy > 2 && iy < height-3 && ix > 2 && ix < width-3 && kx == 1 && ky == 1 && imgy != iy && imgx != ix) printf("%d %d %d %d\n", imgy, iy, imgx, ix);
                     
                     total[0] += k->get(ky*w + kx) * data[(imgy*width*channels + imgx*channels) + 0]/n;
                     total[1] += k->get(ky*w + kx) * data[(imgy*width*channels + imgx*channels) + 1]/n;

@@ -33,8 +33,9 @@ int main()
 
     //f.flip();
     //f.applyKernel(k);
-    k = Kernel::generateSharpen();
+    //k = Kernel::generateSharpen();
     //k = Kernel::generateEmboss();
+    k = Kernel::generateGaussian(100, 5, 10);
     f.applyKernel(k);
 
     f.save("test_out.png", "butts");
