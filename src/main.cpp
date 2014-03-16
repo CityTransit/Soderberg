@@ -20,17 +20,21 @@ int main()
     Frame f;
     Kernel *k;
 
-    float *d = (float *)malloc(9*sizeof(float));
+    //float *d = (float *)malloc(9*sizeof(float));
 
-    for(int i=0; i<9; i++) d[i] = 1;
+    //for(int i=0; i<9; i++) d[i] = 1;
 
     //k = new Kernel(3, 3, d, 9);
 
-    k = Kernel::generateGaussian(100, 5, 10);
+    //k = Kernel::generateGaussian(100, 5, 10);
+    //k = Kernel::generateEdge();
     
     f.open("test_image.png");
 
     //f.flip();
+    //f.applyKernel(k);
+    k = Kernel::generateSharpen();
+    //k = Kernel::generateEmboss();
     f.applyKernel(k);
 
     f.save("test_out.png", "butts");
