@@ -9,7 +9,8 @@ public:
     int get_width() { return width; }
     int get_norm() { return norm; }
     float get(int i) { return k[i]; }
-
+    static Kernel* generateGaussian(int sigma, int std, int distance);
+    
 private:
     int width;
     int height;

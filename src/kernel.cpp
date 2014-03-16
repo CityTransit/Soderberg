@@ -2,13 +2,13 @@
 #include <math.h>
 #include "kernel.h"
 
-Kernel* Kernel::generateGaussian(int std_dev, int distance){
+Kernel* Kernel::generateGaussian(int sigma, int std_dev, int distance){
     float total = 0;
     float *kernel = (float *)malloc(sizeof(float) * distance * distance);
 
     for(int i = 0; i < distance; i++){
         for(int j = 0; j < distance; j++){
-            kernel[distance * j + i] = std_dev;
+            kernel[distance * j + i] = sigma;
         }
     }
 

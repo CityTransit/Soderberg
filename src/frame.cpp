@@ -101,7 +101,7 @@ bool Frame::open(const char *fname)
         }
 
         rowPtrs = new png_bytep[height];
-        data = new char[width * height * bitdepth * channels / 8];
+        data = new unsigned char[width * height * bitdepth * channels / 8];
         const unsigned int stride = width * bitdepth * channels / 8;
 
         for(size_t i = 0; i < height; i++) {
@@ -113,7 +113,7 @@ bool Frame::open(const char *fname)
         //Contains ALPHA information (we don't want it)
         if(channels == 4) { 
             int new_channels = channels-1;
-            char *new_img = (char *)calloc(new_channels*width*height, sizeof(char));
+            unsigned char *new_img = (unsigned char *)calloc(new_channels*width*height, sizeof(char));
 
             if(!new_img) {
                 fprintf(stderr, "WARNING: Image still contains ALPHA information.\n");
@@ -238,7 +238,7 @@ finalise:
 
 bool Frame::flip()
 {
-    char *new_img = (char *)calloc(channels*width*height, sizeof(char));
+    unsigned char *new_img = (unsigned char *)calloc(channels*width*height, sizeof(char));
 	//row = (png_bytep) malloc(3 * width * sizeof(png_byte));
     if(!new_img) {
         return false;
@@ -254,6 +254,51 @@ bool Frame::flip()
 		}
 	}
 
+    delete data;
+    data = new_img;
+    
+    return true;
+}
+
+bool Frame::applyKernel(Kernel *k)
+{
+    unsigned char *new_img = (unsigned char *)calloc(channels*width*height, sizeof(char));
+    int n = k->get_norm();
+    int w = k->get_width();
+    int h = k->get_height();
+    int offx = (w-1)/2;
+    int offy = (h-1)/2;
+
+    if(!new_img) {
+        return false;
+    }
+
+	int ix, iy;     //input access
+    int kx, ky;     //kernel access
+
+	for (iy=0 ; iy<height ; iy++) {
+		for (ix=0 ; ix<width ; ix++) {
+            unsigned int total[3] = {0};
+
+            for(ky=0; ky<h; ky++) {
+
+                int imgy = ((iy - (offy + ky)) + height) % height;
+                for(kx=0; kx<w; kx++) {
+
+                    int imgx = (ix - (offx + kx) + width) % width;
+                    
+                    total[0] += k->get(ky*w + kx) * data[(imgy*width*channels + imgx*channels) + 0]/n;
+                    total[1] += k->get(ky*w + kx) * data[(imgy*width*channels + imgx*channels) + 1]/n;
+                    total[2] += k->get(ky*w + kx) * data[(imgy*width*channels + imgx*channels) + 2]/n;
+                }
+            }
+
+            new_img[iy*width*channels + ix*channels + 0] = fmin(255, (char)total[0]); //(char)fmin(fmax(total[0], 0), 255);
+            new_img[iy*width*channels + ix*channels + 1] = fmin(255, (char)total[1]);//(char)fmin(fmax(total[1], 0), 255);
+            new_img[iy*width*channels + ix*channels + 2] = fmin(255, (char)total[2]); //(char)fmin(fmax(total[2], 0), 255);
+		}
+
+	}
     delete data;
     data = new_img;
     

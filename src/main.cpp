@@ -13,15 +13,25 @@
 #include <iostream>
 #include <fstream>
 
-
+#include "kernel.h"
 
 int main()
 {
     Frame f;
+    Kernel *k;
+
+    float *d = (float *)malloc(9*sizeof(float));
+
+    for(int i=0; i<9; i++) d[i] = 1;
+
+    //k = new Kernel(3, 3, d, 9);
+
+    k = Kernel::generateGaussian(100, 5, 10);
     
     f.open("test_image.png");
 
-    f.flip();
+    //f.flip();
+    f.applyKernel(k);
 
     f.save("test_out.png", "butts");
 

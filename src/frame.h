@@ -1,6 +1,7 @@
 #pragma once
 
 #include "png.h"
+#include "kernel.h"
 #include <stdlib.h>
 #include <stdint.h>
 #include <iostream>
@@ -17,6 +18,7 @@ public:
     bool open(const char *fname);
     bool save(const char *filename, char *title);                           // Save image to file
     bool flip();
+    bool applyKernel(Kernel *k);
 
 private:
     static void userReadData(png_structp pngPtr, png_bytep data, png_size_t length);
@@ -31,5 +33,5 @@ private:
     png_structp pngPtr;
     png_bytep *rowPtrs;
     png_infop infoPtr;
-    char *data;
+    unsigned char *data;
 }; 
