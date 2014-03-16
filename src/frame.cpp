@@ -329,7 +329,7 @@ float Frame::gaussian(float n, float sigma){
 bool Frame::applyKernel(Kernel *k)
 {
     unsigned char *new_img = (unsigned char *)calloc(channels*width*height, sizeof(char));
-    int n = k->get_norm();
+    float n = k->get_norm();
     int w = k->get_width();
     int h = k->get_height();
     int offx = (w-1)/2;
@@ -344,14 +344,16 @@ bool Frame::applyKernel(Kernel *k)
 
 	for (iy=0 ; iy<height ; iy++) {
 		for (ix=0 ; ix<width ; ix++) {
-            unsigned int total[3] = {0};
+            int total[3] = {0};
+            int pos = iy*width*channels + ix*channels;
 
             for(ky=0; ky<h; ky++) {
 
-                int imgy = ((iy - (offy + ky)) + height) % height;
+                int imgy = ((iy - offy + ky) + height) % height;
                 for(kx=0; kx<w; kx++) {
 
-                    int imgx = (ix - (offx + kx) + width) % width;
+                    int imgx = (ix - offx + kx + width) % width;
+                    //if(iy > 2 && iy < height-3 && ix > 2 && ix < width-3 && kx == 1 && ky == 1 && imgy != iy && imgx != ix) printf("%d %d %d %d\n", imgy, iy, imgx, ix);
                     
                     total[0] += k->get(ky*w + kx) * data[(imgy*width*channels + imgx*channels) + 0]/n;
                     total[1] += k->get(ky*w + kx) * data[(imgy*width*channels + imgx*channels) + 1]/n;
@@ -359,9 +361,12 @@ bool Frame::applyKernel(Kernel *k)
                 }
             }
 
-            new_img[iy*width*channels + ix*channels + 0] = fmin(255, (char)total[0]); //(char)fmin(fmax(total[0], 0), 255);
-            new_img[iy*width*channels + ix*channels + 1] = fmin(255, (char)total[1]);//(char)fmin(fmax(total[1], 0), 255);
-            new_img[iy*width*channels + ix*channels + 2] = fmin(255, (char)total[2]); //(char)fmin(fmax(total[2], 0), 255);
+            //if(iy == height/2) printf("RGB = %d %d %d\n", total[0], total[1], total[2]);
+            new_img[pos + 0] = (unsigned char)fmax(fmin(255, total[0]), 0);
+            new_img[pos + 1] = (unsigned char)fmax(fmin(255, total[1]), 0);
+            new_img[pos + 2] = (unsigned char)fmax(fmin(255, total[2]), 0);
+
+            //if(new_img[pos] > 255 || new_img[pos+1] > 255 || new_img[pos+2] > 255) printf("RGB = (%d,%d,%d)\n", new_img[iy*width*channels + ix*channels + 0], new_img[iy*width*channels + ix*channels + 0], new_img[iy*width*channels + ix*channels + 0]);
 		}
 
 	}
