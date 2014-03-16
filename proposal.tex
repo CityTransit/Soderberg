@@ -1,0 +1,66 @@
+%\documentclass[a4paper,12pt,titlepage]{article}
+\documentclass[10pt]{article}
+\title{COMP4490 - Computer Graphics 2 \\ Project Proposal \\ Investigation of Non-Photorealistic Filters and their Effects on Images and Video}
+\author{Robin Swanson \& Nico Richard\\ umswans5@myumanitoba.ca umrich84@myumanitoba.ca}
+\date{February 2014}
+\usepackage{graphicx}
+\usepackage{parskip}
+\usepackage{mathtools}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{array}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\usepackage[margin=1in]{geometry}
+\fancyhead[R]{Robin Swanson \& Nico Richard - Project Proposal}
+\begin{document}
+\maketitle
+
+For our project we propose a comparison of various image filters resulting in a "cartoon-ish" appearance. Upon implementation they will be characterized by runtime, complexity, ease of implementation, and resulting image. Upon completing this step we will create a pipeline to decompose a video into frames, apply a filter of choice, and recreate the original video (with the use of ffmpeg\footnote{FFMPEG - http://www.ffmpeg.org/} for video manipulation).
+
+Some of the filters we hope to incorporate include a Bilateral Filter\cite{bilateral}, Anisotropic Kuwahara Filter\cite{AKF} both with and without edge enhancement techniques. In addition we will explore Difference of Gaussian techniques such as (Isotropic/Flow-Based/Flow-BasedX)DoG techniques\cite{dog, fbdog, moredog} and possibly more artistic filters such as Weickert's coherence-enhancing shock filter\cite{weickert}
+
+\begin{center}
+\begin{figure}[!htb]
+		\centering
+		\includegraphics[scale=0.6]{bilateral}
+		\caption{An iterative application of a bilateral filter. \\ Original Image: Philip Greenspun}
+\end{figure}
+\end{center}
+
+Our baseline project would include the implementation and comparison of at least 3 stylization techniques on a short ($\leq 30s$) video. By separating our goals into different filters it gives us much more flexibility in how much we are able to complete and/or fall back on if any filter proves very difficult to implement. Ideally we will be able to implement several filters of each type to be chosen by our user. If time permits, the complete reconstruction of a more lengthy video in multiple filters for comparison would be completed. Due to the embarrassingly parallel nature of converting video stills this could easily be completed thanks to various clusters of computers lying around the Computer Science department.
+
+\begin{center}
+\begin{figure}[!htb]
+		\centering
+		\includegraphics[scale=0.6]{dog}
+		\caption{Comparison of various edge detection and stylization filters \\ Original Image: Image and Video-Based Artistic Stylisation\cite{book}}
+\end{figure}
+\end{center}
+
+\begin{thebibliography}{99} % 
+
+\bibitem{bilateral}
+Tomasi, C., Manduchi, R.: Bilateral filtering for gray and color images. In: Proc. ICCV, pp. 839–846 (1998). doi: 10.1109/ICCV.1998.710815
+
+\bibitem{AKF}
+Kyprianidis, J.E., Kang, H., Döllner, J.: Image and video abstraction by anisotropic Kuwahara filtering. Comput. Graph. Forum 28 (7), 1955–1963 (2009). doi:10.1111/j.1467-8659.2009.01574.x
+
+\bibitem{dog}
+Winnemöller, H., Kyprianidis, J.E., Olsen, S.C.: XDoG: an extended difference-of-Gaussians compendium including advanced image stylization. Comput. Graph. 36 (6), 740–753 (2012). doi:10.1016/j.cag.2012.03.004
+
+\bibitem{fbdog}
+Kang, H., Lee, S., Chui, C.K.: Flow-based image abstraction. IEEE Trans. Vis. Comput. Graph. 15 (1), 62–76 (2009). doi: 10.1109/TVCG.2008.81
+
+\bibitem{moredog}
+Kyprianidis, J.E., Döllner, J.: Image abstraction by structure adaptive filtering. In: Proc. EG UK TPCG, pp. 51–58 (2008). doi: 10.2312/LocalChapterEvents/TPCG/TPCG08/051-058
+
+\bibitem{weickert}
+Torre, V., Poggio, T.A.: On edge detection. IEEE Trans. Pattern Anal. Mach. Intell. 8 (2), 147–163 (1986). doi: 10.1109/TPAMI.1986.4767769
+
+\bibitem{book}
+"Image and Video-Based Artistic Stylisation"; Paul Rosin, John Collomosse; Computational Imaging and Vision, Volume 42 (2013)
+
+
+\end{thebibliography}
+\end{document}
