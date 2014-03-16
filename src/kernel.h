@@ -10,6 +10,8 @@ public:
     int get_norm() { return norm; }
     float get(int i) { return k[i]; }
     static Kernel* generateGaussian(int sigma, int std, int distance);
+    static Kernel* generateBilateral(float s, float r, int size);
+    static float gaussian(float n, float sigma);
     
 private:
     int width;

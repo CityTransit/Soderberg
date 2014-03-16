@@ -260,6 +260,72 @@ bool Frame::flip()
     return true;
 }
 
+bool Frame::applyBilateral(float s, float r, int distance)
+{
+    unsigned char *new_img = (unsigned char *)calloc(channels*width*height, sizeof(char));
+
+    if(!new_img) {
+        return false;
+    }
+
+    unsigned int ix, iy;     //input access
+    int kx, ky;     //kernel access
+    int endx, endy;
+
+    for (iy=0 ; iy<height ; iy++) {
+        for (ix=0 ; ix<width ; ix++) {
+            float total[3] = {0};
+            float wp[3] = {0};
+
+            ky = iy - distance;
+            kx = ix - distance;
+            endx = ix + distance;
+            endy = iy + distance;
+
+            ky = fmax(0, ky);
+            kx = fmax(0, kx); 
+            endx = fmin(width, endx);
+            endy = fmin(height, endy);
+
+            for(; ky<endy; ky++) {
+                for(; kx<endx; kx++) {
+                    float delta = sqrt(pow((ix - kx), 2) + pow((iy - ky), 2));
+
+                    float abs = fabs(data[iy*width*channels + ix*channels + 0] - data[(ky*width*channels + kx*channels) + 0]);
+                    wp[0]+=gaussian(delta, s) * gaussian(abs, r);
+                    total[0]+=wp[0] * data[(ky*width*channels + kx*channels) + 0];
+
+                    abs = fabs(data[iy*width*channels + ix*channels + 1] - data[(ky*width*channels + kx*channels) + 1]);
+                    wp[1]+=gaussian(delta, s) * gaussian(abs, r);
+                    total[1]+=wp[1] * data[(ky*width*channels + kx*channels) + 1];
+                    
+                    abs = fabs(data[iy*width*channels + ix*channels + 2] - data[(ky*width*channels + kx*channels) + 2]);
+                    wp[2]+=gaussian(delta, s) * gaussian(abs, r);                 
+                    total[2]+=wp[2] * data[(ky*width*channels + kx*channels) + 2];   
+                }
+            }
+
+            total[0]/=wp[0];
+            total[1]/=wp[1];
+            total[2]/=wp[2];
+
+            new_img[iy*width*channels + ix*channels + 0] = (unsigned char) fmax(fmin(255, total[0]), 0);
+            new_img[iy*width*channels + ix*channels + 1] = (unsigned char) fmax(fmin(255, total[1]), 0);
+            new_img[iy*width*channels + ix*channels + 2] = (unsigned char) fmax(fmin(255, total[2]), 0);
+        }
+
+    }
+    delete data;
+    data = new_img;
+    
+    return true;
+    
+}
+
+float Frame::gaussian(float n, float sigma){
+    return exp(-1 / (2* pow(sigma, 2)) * ( pow(n, 2) ));
+}
+
 bool Frame::applyKernel(Kernel *k)
 {
     unsigned char *new_img = (unsigned char *)calloc(channels*width*height, sizeof(char));

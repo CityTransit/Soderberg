@@ -26,12 +26,15 @@ int main()
 
     //k = new Kernel(3, 3, d, 9);
 
-    k = Kernel::generateGaussian(100, 5, 10);
+    //k = Kernel::generateGaussian(100, 5, 10);
+    k = Kernel::generateBilateral(4, 0.05, 10);
     
     f.open("test_image.png");
 
     //f.flip();
-    f.applyKernel(k);
+    //f.applyKernel(k);
+    f.applyBilateral(4, 0.2, 10);
+
 
     f.save("test_out.png", "butts");
 
