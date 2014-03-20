@@ -3,20 +3,28 @@
 #include <math.h>
 #include "kernel.h"
 
-Kernel *Kernel::generateGaussian(int sigma, int std_dev, int distance)
+Kernel *Kernel::generateGaussian(float sigma, int distance)
 {
-    float total = 0;
     float *kernel = (float *)malloc(sizeof(float) * distance * distance);
+    float norm = 0;
 
     for(int i = 0; i < distance; i++) {
+        float y = -(distance-1)/2 + i;
         for(int j = 0; j < distance; j++) {
-            float g =  exp(-1 / (2* pow(std_dev, 2)) * (pow(i, 2) + pow(j, 2) ));
-            total += g;
-            kernel[distance * j + i] = g;
+            float x = -(distance-1)/2 + j;
+            float g =  exp(-(x*x + y*y) / (2*sigma*sigma));
+            kernel[distance * i + j] = g;
+            norm += g;
         }
     }
 
-    return new Kernel(distance, distance, kernel, total); 
+    for(int i=0; i<distance; i++) {
+        for(int j=0; j<distance; j++) {
+            kernel[distance*i + j] /= norm;
+        }
+    }
+
+    return new Kernel(distance, distance, kernel); 
 }
 
 Kernel *Kernel::generateSharpen() 
