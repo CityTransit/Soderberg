@@ -1,3 +1,6 @@
 libpng/
+<<<<<<< HEAD
+=======
 src/*.png
+>>>>>>> 5ce1ff70c7b5bbe6587b02e7178d23daf48264b7
 src/ritter
