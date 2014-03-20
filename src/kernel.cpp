@@ -18,13 +18,7 @@ Kernel *Kernel::generateGaussian(float sigma, int distance)
         }
     }
 
-    for(int i=0; i<distance; i++) {
-        for(int j=0; j<distance; j++) {
-            kernel[distance*i + j] /= norm;
-        }
-    }
-
-    return new Kernel(distance, distance, kernel); 
+    return new Kernel(distance, distance, kernel, norm); 
 }
 
 Kernel *Kernel::generateSharpen() 
