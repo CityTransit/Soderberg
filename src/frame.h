@@ -19,7 +19,7 @@ public:
     bool save(const char *filename, char *title);                           // Save image to file
     bool flip();
     bool applyKernel(Kernel *k);
-    bool applyBilateral(float s, float r, int distance);
+    bool applyBilateral(float s, float r);
     static float gaussian(float n, float sigma);
 private:
     static void userReadData(png_structp pngPtr, png_bytep data, png_size_t length);

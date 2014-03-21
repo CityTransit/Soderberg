@@ -260,7 +260,7 @@ bool Frame::flip()
     return true;
 }
 
-bool Frame::applyBilateral(float s, float r, int distance)
+bool Frame::applyBilateral(float s, float r)
 {
     unsigned char *new_img = (unsigned char *)calloc(channels*width*height, sizeof(char));
 
@@ -268,46 +268,56 @@ bool Frame::applyBilateral(float s, float r, int distance)
         return false;
     }
 
-    unsigned int ix, iy;     //input access
+    // If they're expecting image values to be [0,1]
+    r = (r < 1) ? 255*r : r;
+
+    int ix, iy;     //input access
     int kx, ky;     //kernel access
     int endx, endy;
+    float pix_gauss, clr_gauss, gauss;
 
-    for (iy=0 ; iy<height ; iy++) {
-        for (ix=0 ; ix<width ; ix++) {
-            float total[3] = {0};
-            float wp[3] = {0};
+    for (iy=0; iy<height; iy++) {
+        for (ix=0; ix<width; ix++) {
+            double total[3] = {0};
+            double norm[3] = {0};
+            int img_pos = iy*width*channels + ix*channels;
 
-            ky = iy - distance;
-            kx = ix - distance;
-            endx = ix + distance;
-            endy = iy + distance;
+            ky = iy - (s-1)/2;
+            endx = ix + (s-1)/2;
+            endy = iy + (s-1)/2;
 
             ky = fmax(0, ky);
-            kx = fmax(0, kx); 
-            endx = fmin(width, endx);
-            endy = fmin(height, endy);
+            endy = fmin(height-1, endy);
 
-            for(; ky<endy; ky++) {
-                for(; kx<endx; kx++) {
-                    float delta = sqrt(pow((ix - kx), 2) + pow((iy - ky), 2));
+            for(; ky<=endy; ky++) {
+                kx = ix - (s-1)/2;
+                kx = fmax(0, kx); 
+                endx = fmin(width-1, endx);
+                for(; kx<=endx; kx++) {
+                    int knl_pos = ky*width*channels + kx*channels;
+                    pix_gauss = gaussian(sqrt(pow((ix - kx), 2) + pow((iy - ky), 2)), s);
 
-                    float abs = fabs(data[iy*width*channels + ix*channels + 0] - data[(ky*width*channels + kx*channels) + 0]);
-                    wp[0]+=gaussian(delta, s) * gaussian(abs, r);
-                    total[0]+=wp[0] * data[(ky*width*channels + kx*channels) + 0];
+                    clr_gauss = gaussian(abs(data[img_pos + 0] - data[knl_pos + 0]), r);
+                    gauss = pix_gauss * clr_gauss;
+                    total[0] += gauss * data[knl_pos + 0];
+                    norm[0] += gauss;
 
-                    abs = fabs(data[iy*width*channels + ix*channels + 1] - data[(ky*width*channels + kx*channels) + 1]);
-                    wp[1]+=gaussian(delta, s) * gaussian(abs, r);
-                    total[1]+=wp[1] * data[(ky*width*channels + kx*channels) + 1];
-                    
-                    abs = fabs(data[iy*width*channels + ix*channels + 2] - data[(ky*width*channels + kx*channels) + 2]);
-                    wp[2]+=gaussian(delta, s) * gaussian(abs, r);                 
-                    total[2]+=wp[2] * data[(ky*width*channels + kx*channels) + 2];   
+                    clr_gauss = gaussian(abs(data[img_pos + 1] - data[knl_pos + 1]), r);
+                    gauss = pix_gauss * clr_gauss;
+                    total[1] += gauss * data[knl_pos + 1];
+                    norm[1] += gauss;
+
+                    clr_gauss = gaussian(abs(data[img_pos + 2] - data[knl_pos + 2]), r);
+                    gauss = pix_gauss * clr_gauss;
+                    total[2] += gauss * data[knl_pos + 2];
+                    norm[2] += gauss;
+
                 }
             }
 
-            total[0]/=wp[0];
-            total[1]/=wp[1];
-            total[2]/=wp[2];
+            total[0] /= norm[0];
+            total[1] /= norm[1];
+            total[2] /= norm[2];
 
             new_img[iy*width*channels + ix*channels + 0] = (unsigned char) fmax(fmin(255, total[0]), 0);
             new_img[iy*width*channels + ix*channels + 1] = (unsigned char) fmax(fmin(255, total[1]), 0);
@@ -315,15 +325,15 @@ bool Frame::applyBilateral(float s, float r, int distance)
         }
 
     }
+
     delete data;
     data = new_img;
     
     return true;
-    
 }
 
-float Frame::gaussian(float n, float sigma){
-    return exp(-1 / (2* pow(sigma, 2)) * ( pow(n, 2) ));
+float Frame::gaussian(float x, float sigma){
+    return exp(- x*x / (2*sigma*sigma) ) / (2*M_PI*sigma);
 }
 
 bool Frame::applyKernel(Kernel *k)
@@ -375,3 +385,4 @@ bool Frame::applyKernel(Kernel *k)
     
     return true;
 }
+
