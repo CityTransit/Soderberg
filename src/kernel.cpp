@@ -3,6 +3,11 @@
 #include <math.h>
 #include "kernel.h"
 
+Kernel::~Kernel()
+{
+    if(k) delete k;
+}
+
 Kernel *Kernel::generateGaussian(float sigma, int distance)
 {
     float *kernel = (float *)malloc(sizeof(float) * distance * distance);

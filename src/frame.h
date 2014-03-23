@@ -13,6 +13,7 @@ class Frame
 {
 public:
     Frame() {}
+    Frame(Frame *copy);
     ~Frame();
 
     bool open(const char *fname);
@@ -20,10 +21,12 @@ public:
     bool flip();
     bool applyKernel(Kernel *k);
     bool applyBilateral(float s, float r);
+    bool applyTemporalBilateral(float s, float r, float t, Frame *f, int fn);
     static float gaussian(float n, float sigma);
 private:
     static void userReadData(png_structp pngPtr, png_bytep data, png_size_t length);
     static bool validate(std::istream &src);
+    unsigned char get(int x, int y, int c);
 
     png_uint_32 width;
     png_uint_32 height;
