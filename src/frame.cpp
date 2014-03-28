@@ -6,6 +6,17 @@
 #include <math.h>
 #include "gauss.h"
 
+Frame::Frame(Frame *copy)
+{
+    this->width = copy->width;
+    this->height = copy->height;
+    this->bitdepth = copy->bitdepth;
+    this->channels = copy->channels;
+    this->colourtype = copy->colourtype;
+
+    memcpy(this->data, copy->data, (channels*width*height*sizeof(char)));
+}
+
 void Frame::userReadData(png_structp pngPtr, png_bytep data, png_size_t length)
 {
     png_voidp a = png_get_io_ptr(pngPtr);
@@ -149,9 +160,9 @@ bool Frame::open(const char *fname)
 // Deconstructor
 Frame::~Frame()
 {
-    delete [] (png_bytep)rowPtrs;
-    png_destroy_read_struct(&pngPtr, &infoPtr, (png_infopp)0);
-    //delete image;
+    //delete [] (png_bytep)rowPtrs;
+    //png_destroy_read_struct(&pngPtr, &infoPtr, (png_infopp)0);
+    //if(data) free(data);
 }
 
 bool Frame::save(const char *filename, char *title)
@@ -334,6 +345,105 @@ bool Frame::applyBilateral(float s, float r)
     return true;
 }
 
+/*
+ * Applys a temporal bilateral filter to the current frame.
+ *
+ * s - Spatial gaussian standard deviation
+ * r - Pixel value gaussian standard deviation
+ * t - Temporal gaussian standard deviation
+ * *f - Pointer to an array of Frames
+ * fn - Length of the pointer or arrays
+ *
+ */
+
+bool Frame::applyTemporalBilateral(float s, float r, float t, Frame *f, int fn)
+{
+    unsigned char *new_img = (unsigned char *)calloc(channels*width*height, sizeof(char));
+
+    if(!new_img) {
+        return false;
+    }
+
+    // If they're expecting image values to be [0,1]
+    r = (r < 1) ? 255*r : r;
+
+    int ix, iy;     //input access
+    int kx, ky;     //kernel access
+    int endx, endy;
+    float pix_gauss, clr_gauss, gauss;
+
+    for (iy=0; iy<height; iy++) {
+        for (ix=0; ix<width; ix++) {
+            double total[3] = {0};
+            double norm[3] = {0};
+            int img_pos = iy*width*channels + ix*channels;
+
+            ky = iy - (s-1)/2;
+            endx = ix + (s-1)/2;
+            endy = iy + (s-1)/2;
+
+            ky = fmax(0, ky);
+            endy = fmin(height-1, endy);
+
+            // Apply spatial and pixel value filters
+            for(; ky<=endy; ky++) {
+                kx = ix - (s-1)/2;
+                kx = fmax(0, kx); 
+                endx = fmin(width-1, endx);
+                for(; kx<=endx; kx++) {
+                    int knl_pos = ky*width*channels + kx*channels;
+                    pix_gauss = gaussian(sqrt(pow((ix - kx), 2) + pow((iy - ky), 2)), s);
+
+                    clr_gauss = gaussian(abs(data[img_pos + 0] - data[knl_pos + 0]), r);
+                    gauss = pix_gauss * clr_gauss;
+                    total[0] += gauss * data[knl_pos + 0];
+                    norm[0] += gauss;
+
+                    clr_gauss = gaussian(abs(data[img_pos + 1] - data[knl_pos + 1]), r);
+                    gauss = pix_gauss * clr_gauss;
+                    total[1] += gauss * data[knl_pos + 1];
+                    norm[1] += gauss;
+
+                    clr_gauss = gaussian(abs(data[img_pos + 2] - data[knl_pos + 2]), r);
+                    gauss = pix_gauss * clr_gauss;
+                    total[2] += gauss * data[knl_pos + 2];
+                    norm[2] += gauss;
+
+                }
+            }
+
+            // Apply temporal filter
+            for(int p=0; p<fn; p++) {
+                gauss = gaussian( abs(data[img_pos + 0] - f[p].get(ix, iy, 0)), t);
+                total[0] += gauss * f[p].get(ix, iy, 0);
+                norm[0] += gauss;
+
+                gauss = gaussian( abs(data[img_pos + 1] - f[p].get(ix, iy, 1)), t);
+                total[1] += gauss * f[p].get(ix, iy, 1);
+                norm[1] += gauss;
+
+                gauss = gaussian( abs(data[img_pos + 2] - f[p].get(ix, iy, 2)), t);
+                total[2] += gauss * f[p].get(ix, iy, 2);
+                norm[2] += gauss;
+            }
+
+            total[0] /= norm[0];
+            total[1] /= norm[1];
+            total[2] /= norm[2];
+
+            new_img[iy*width*channels + ix*channels + 0] = (unsigned char) fmax(fmin(255, total[0]), 0);
+            new_img[iy*width*channels + ix*channels + 1] = (unsigned char) fmax(fmin(255, total[1]), 0);
+            new_img[iy*width*channels + ix*channels + 2] = (unsigned char) fmax(fmin(255, total[2]), 0);
+        }
+
+    }
+
+    delete data;
+    data = new_img;
+    
+    return true;
+}
+
 float Frame::gaussian(float x, float sigma){
     return exp(- x*x / (2*sigma*sigma) ) / (2*M_PI*sigma);
 }
@@ -360,12 +470,9 @@ bool Frame::applyKernel(Kernel *k)
             int pos = iy*width*channels + ix*channels;
 
             for(ky=0; ky<h; ky++) {
-
                 int imgy = ((iy - offy + ky) + height) % height;
                 for(kx=0; kx<w; kx++) {
-
                     int imgx = (ix - offx + kx + width) % width;
-                    //if(iy > 2 && iy < height-3 && ix > 2 && ix < width-3 && kx == 1 && ky == 1 && imgy != iy && imgx != ix) printf("%d %d %d %d\n", imgy, iy, imgx, ix);
                     
                     total[0] += k->get(ky*w + kx) * data[(imgy*width*channels + imgx*channels) + 0]/n;
                     total[1] += k->get(ky*w + kx) * data[(imgy*width*channels + imgx*channels) + 1]/n;
@@ -373,14 +480,10 @@ bool Frame::applyKernel(Kernel *k)
                 }
             }
 
-            //if(iy == height/2) printf("RGB = %d %d %d\n", total[0], total[1], total[2]);
             new_img[pos + 0] = (unsigned char)fmax(fmin(255, total[0]), 0);
             new_img[pos + 1] = (unsigned char)fmax(fmin(255, total[1]), 0);
             new_img[pos + 2] = (unsigned char)fmax(fmin(255, total[2]), 0);
-
-            //if(new_img[pos] > 255 || new_img[pos+1] > 255 || new_img[pos+2] > 255) printf("RGB = (%d,%d,%d)\n", new_img[iy*width*channels + ix*channels + 0], new_img[iy*width*channels + ix*channels + 0], new_img[iy*width*channels + ix*channels + 0]);
 		}
-
 	}
     delete data;
     data = new_img;
@@ -530,4 +633,9 @@ float Frame::threshold(float a, float b, float t){
         res = a - b;
     }
     return res;
+}
+
+unsigned char Frame::get(int x, int y, int c)
+{
+    return (x < width && y < height && x >= 0 && c < channels && y >= 0 && c >= 0) ? data[y*width*channels + x*channels + c] : 0;
 }
