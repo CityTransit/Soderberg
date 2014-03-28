@@ -19,12 +19,15 @@ public:
     bool save(const char *filename, char *title);                           // Save image to file
     bool flip();
     bool applyKernel(Kernel *k);
+    bool applyTwoToneKernel(Kernel *k);
+    bool applyDoG(float s, float k);
     bool applyBilateral(float s, float r);
-    static float gaussian(float n, float sigma);
+    static 
+float gaussian(float n, float sigma);
 private:
     static void userReadData(png_structp pngPtr, png_bytep data, png_size_t length);
     static bool validate(std::istream &src);
-
+    float threshold(float a, float b, float t);
     png_uint_32 width;
     png_uint_32 height;
     png_uint_32 bitdepth;

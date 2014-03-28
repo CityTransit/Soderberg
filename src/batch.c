@@ -19,7 +19,8 @@
 int main()
 {
     Frame f;
-    Kernel *k = Kernel::generateGaussian(100, 5, 10);
+    //Kernel *k = Kernel::generateGaussian(100, 5, 10);
+    Kernel *k = Kernel::generateLoG(5, 10);
     DIR *dir;
     struct dirent *ent;
     char outname[50];

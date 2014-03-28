@@ -3,7 +3,7 @@
 #include <math.h>
 #include "kernel.h"
 
-Kernel *Kernel::generateGaussian(float sigma, int distance)
+Kernel *Kernel::generateGaussian(int distance)
 {
     float *kernel = (float *)malloc(sizeof(float) * distance * distance);
     float norm = 0;
@@ -12,13 +12,38 @@ Kernel *Kernel::generateGaussian(float sigma, int distance)
         float y = -(distance-1)/2 + i;
         for(int j = 0; j < distance; j++) {
             float x = -(distance-1)/2 + j;
-            float g =  exp(-(x*x + y*y) / (2*sigma*sigma));
+            float g =  exp(-(x*x + y*y) / (2*distance*distance));
             kernel[distance * i + j] = g;
             norm += g;
         }
     }
 
     return new Kernel(distance, distance, kernel, norm); 
+}
+
+Kernel *Kernel::generateLoG(float sigma, int distance)
+{
+    float *kernel = (float *)malloc(sizeof(float) * distance * distance);
+
+    int pos;
+    for(int i = 0; i < distance; i++) {
+        float y = -(distance-1)/2 + i;
+        for(int j = 0; j < distance; j++) {
+            float x = -(distance-1)/2 + j;
+            pos = distance * i + j;
+            
+            float log = exp(-(x*x + y*y) / (2*sigma*sigma));
+            log = (1 - (x*x + y*y) / (2*sigma*sigma)) * log;
+            log = -( 1/(M_PI * pow(sigma, 4))) * log;
+
+            kernel[pos] = log;
+            printf("%f ", log);
+
+        }
+        printf("\n");
+    }
+
+    return new Kernel(distance, distance, kernel); 
 }
 
 Kernel *Kernel::generateSharpen() 

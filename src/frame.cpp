@@ -4,6 +4,7 @@
 #include "frame.h"
 #include <stdint.h>
 #include <math.h>
+#include "gauss.h"
 
 void Frame::userReadData(png_structp pngPtr, png_bytep data, png_size_t length)
 {
@@ -270,6 +271,7 @@ bool Frame::applyBilateral(float s, float r)
 
     // If they're expecting image values to be [0,1]
     r = (r < 1) ? 255*r : r;
+    Gauss* g = new Gauss(r);
 
     int ix, iy;     //input access
     int kx, ky;     //kernel access
@@ -297,17 +299,17 @@ bool Frame::applyBilateral(float s, float r)
                     int knl_pos = ky*width*channels + kx*channels;
                     pix_gauss = gaussian(sqrt(pow((ix - kx), 2) + pow((iy - ky), 2)), s);
 
-                    clr_gauss = gaussian(abs(data[img_pos + 0] - data[knl_pos + 0]), r);
+                    clr_gauss = g->getGauss(abs(data[img_pos + 0] - data[knl_pos + 0]));
                     gauss = pix_gauss * clr_gauss;
                     total[0] += gauss * data[knl_pos + 0];
                     norm[0] += gauss;
 
-                    clr_gauss = gaussian(abs(data[img_pos + 1] - data[knl_pos + 1]), r);
+                    clr_gauss = g->getGauss(abs(data[img_pos + 1] - data[knl_pos + 1]));
                     gauss = pix_gauss * clr_gauss;
                     total[1] += gauss * data[knl_pos + 1];
                     norm[1] += gauss;
 
-                    clr_gauss = gaussian(abs(data[img_pos + 2] - data[knl_pos + 2]), r);
+                    clr_gauss = g->getGauss(abs(data[img_pos + 2] - data[knl_pos + 2]));
                     gauss = pix_gauss * clr_gauss;
                     total[2] += gauss * data[knl_pos + 2];
                     norm[2] += gauss;
@@ -386,3 +388,146 @@ bool Frame::applyKernel(Kernel *k)
     return true;
 }
 
+bool Frame::applyTwoToneKernel(Kernel *k)
+{
+    unsigned char *new_img = (unsigned char *)calloc(channels*width*height, sizeof(char));
+
+    int w = k->get_width();
+    int h = k->get_height();
+    int offx = (w-1)/2;
+    int offy = (h-1)/2;
+
+    if(!new_img) {
+        return false;
+    }
+
+    int ix, iy;     //input access
+    int kx, ky;     //kernel access
+
+    for (iy=0 ; iy<height ; iy++) {
+        for (ix=0 ; ix<width ; ix++) {
+            float total = 0;
+            int pos = iy*width*channels + ix*channels;
+
+            for(ky=0; ky<h; ky++) {
+                int imgy = ((iy - offy + ky) + height) % height;
+                for(kx=0; kx<w; kx++) {
+                    int imgx = (ix - offx + kx + width) % width;
+
+                    float tmp = 0;
+                    tmp += k->get(ky*w + kx) * data[(imgy*width*channels + imgx*channels) + 0];
+                    tmp += k->get(ky*w + kx) * data[(imgy*width*channels + imgx*channels) + 1];
+                    tmp += k->get(ky*w + kx) * data[(imgy*width*channels + imgx*channels) + 2];
+                    tmp/=3;
+                    total+=tmp;
+                }
+            }
+
+            if(total <= 0) total = 255;
+            else total = 0;
+
+            new_img[pos + 0] = total;
+            new_img[pos + 1] = total;
+            new_img[pos + 2] = total;
+
+        }
+
+    }
+    delete data;
+    data = new_img;
+    
+    return true;
+}
+
+
+bool Frame::applyDoG(float sigma, float k)
+{
+    Kernel *k1 = Kernel::generateGaussian(sigma);
+    Kernel *k2 = Kernel::generateGaussian(sigma * k);
+    unsigned char *new_img = (unsigned char *)calloc(channels*width*height, sizeof(char));
+    float n1 = k1->get_norm();
+    int w1 = k1->get_width();
+    int h1 = k1->get_height();
+    int offx1 = (w1-1)/2;
+    int offy1 = (h1-1)/2;
+    
+
+    float n2 = k2->get_norm();
+    int w2 = k2->get_width();
+    int h2 = k2->get_height();
+    int offx2 = (w2-1)/2;
+    int offy2 = (h2-1)/2;
+
+    if(w2 < w1 || h2 < h1){
+        perror("Bad kernel sizes applyDoG()");
+        return false;
+    }
+
+    if(!new_img) {
+        return false;
+    }
+
+    int ix, iy;     //input access
+    int kx, ky;     //kernel access
+
+    for (iy=0 ; iy<height ; iy++) {
+        for (ix=0 ; ix<width ; ix++) {
+            float total1 = 0;
+            float total2 = 0;
+            int pos = iy*width*channels + ix*channels;
+
+            for(ky=0; ky<h2; ky++) {
+                int imgy1 = ((iy - offy1 + ky) + height) % height;
+                int imgy2 = ((iy - offy2 + ky) + height) % height;
+                for(kx=0; kx<w2; kx++) {
+                    if(ky<h1 && kx<w1){
+                        int imgx1 = (ix - offx1 + kx + width) % width;
+                        int pos2 = (imgy1*width*channels + imgx1*channels);
+
+                        float tmp = data[pos2 + 0] + data[pos2 + 1] + data[pos2 + 2];
+                        tmp *= k1->get(ky*w1 + kx);
+                        tmp/=3 * n1;
+
+                        total1+=tmp;
+                    }
+                    int imgx2 = (ix - offx2 + kx + width) % width;
+                    int pos2 = (imgy2*width*channels + imgx2*channels);
+
+                    float tmp = data[pos2 + 0] + data[pos2 + 1] + data[pos2 + 2];
+                    tmp *= k2->get(ky*w2 + kx);
+                    tmp/=3 * n2;
+
+                    total2+=tmp;
+                }
+            }
+            
+            float dog_val;// = threshold(total1, total2, 0);
+
+            float p = 0.2;
+            p *= 255;
+            dog_val = (1 + p) * total1 - p * total2;
+            
+            dog_val = (unsigned char)fmax(fmin(255, dog_val), 0);
+
+            new_img[pos + 0] =
+            new_img[pos + 1] =
+            new_img[pos + 2] = dog_val;
+
+        }
+
+    }
+    delete data;
+    data = new_img;
+    
+    return true;
+}
+
+float Frame::threshold(float a, float b, float t){
+    float res;
+    if((a -b) > t){
+        res = 255 - (a - b);
+    } else {
+        res = a - b;
+    }
+    return res;
+}
