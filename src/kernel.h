@@ -1,5 +1,7 @@
 #pragma once
 
+#define LOG_K 1.6
+
 class Kernel
 {
 public:
@@ -9,9 +11,8 @@ public:
     int get_width() { return width; }
     int get_norm() { return norm; }
     float get(int i) { return k[i]; }
-    static Kernel *generateGaussian(float sigma, int distance);
-
-    static Kernel* generateGaussian(int sigma, int std, int distance);
+    static Kernel* generateGaussian(int distance);
+    static Kernel* generateLoG(float sigma, int distance);
     static Kernel* generateBilateral(float s, float r, int size);
     static float gaussian(float n, float sigma);
     static Kernel *generateSharpen();
