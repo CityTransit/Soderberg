@@ -22,6 +22,7 @@ public:
     bool applyKernel(Kernel *k);
     bool applyBilateral(float s, float r);
     bool applyTemporalBilateral(float s, float r, float t, Frame *f, int fn);
+    bool applyKuwahara(int a);
     static float gaussian(float n, float sigma);
 private:
     static void userReadData(png_structp pngPtr, png_bytep data, png_size_t length);

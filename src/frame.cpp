@@ -494,3 +494,90 @@ unsigned char Frame::get(int x, int y, int c)
     return (x < width && y < height && x >= 0 && c < channels && y >= 0 && c >= 0) ? data[y*width*channels + x*channels + c] : 0;
 }
 
+bool Frame::applyKuwahara(int a)
+{
+    unsigned char *new_img = (unsigned char *)calloc(channels*width*height, sizeof(char));
+
+    if(!new_img) {
+        return false;
+    }
+
+	for (int iy=0 ; iy<height ; iy++) {
+		for (int ix=0 ; ix<width ; ix++) {
+            int pos = iy*width*channels + ix*channels;
+            double stdd[4] = {0};
+            double mins = 999999999999;
+            int min = -1;
+
+            double meanL[4] = {0};
+            double meanR[4] = {0};
+            double meanG[4] = {0};
+            double meanB[4] = {0};
+
+            // Over our four quadrants
+            for(int q=0; q<4; q++) {
+                int ky, h, kx, w;
+
+                // One-pass standard deviation calculation
+                double M = 0;
+                double Q = 0;
+                int count = 0;
+
+                // Quadrant boundaries
+                if(q < 2) {
+                    ky = fmax(0, iy);
+                    h = fmin(height, iy+a+1);
+                }
+                else {
+                    ky = fmax(0, iy-a);
+                    h = fmin(height, iy+1);
+                }
+
+                for(; ky<h; ky++) {
+                    // Quadrant boundaries
+                    if(q == 0 || q == 3) {
+                        kx = fmax(0, ix);
+                        w = fmin(width, ix+a+1);
+                    }
+                    else {
+                        kx = fmax(0, ix-a);
+                        w = fmin(width, ix+1);
+                    }
+
+                    for(; kx<w; kx++) {
+                        // Luminance Value
+                        int kpos = ky*width*channels + kx*channels;
+                        double val = data[kpos + 0]*0.21 + data[kpos + 1]*0.71 + data[kpos + 2]*0.07;
+                        Q = (count == 0) ? 0 : Q + (count-1)*(val-M)*(val-M)/count;
+                        M = (count == 0) ? val : M + (val-M)/count;
+                        meanL[q] += val;
+                        meanR[q] += data[kpos + 0];
+                        meanG[q] += data[kpos + 1];
+                        meanB[q] += data[kpos + 2];
+                        count++;
+                    }
+                }
+
+                stdd[q] = Q/count;
+                meanL[q] /= count;
+                meanR[q] /= count;
+                meanG[q] /= count;
+                meanB[q] /= count;
+
+                if(stdd[q] < mins) {
+                    mins = stdd[q];
+                    min = q;
+                }
+            }
+
+            new_img[pos + 0] = (unsigned char)fmax(fmin(255, meanR[min]), 0);
+            new_img[pos + 1] = (unsigned char)fmax(fmin(255, meanG[min]), 0);
+            new_img[pos + 2] = (unsigned char)fmax(fmin(255, meanB[min]), 0);
+		}
+	}
+    delete data;
+    data = new_img;
+    
+    return true;
+}
+
