@@ -603,18 +603,320 @@ bool Frame::applyDoG(float sigma, float k)
                     total2+=tmp;
                 }
             }
-            
-            float dog_val;// = threshold(total1, total2, 0);
+            //Threshold DoG
+            float dog_val = threshold(total1, total2, 0);
+            dog_val = (unsigned char)fmax(fmin(255, dog_val), 0);
 
-            float p = 0.2;
-            p *= 255;
-            dog_val = (1 + p) * total1 - p * total2;
+            new_img[pos + 0] = 
+                new_img[pos + 1] = 
+                new_img[pos + 2] = dog_val;
+
+        }
+
+    }
+    delete data;
+    data = new_img;
+    
+    return true;
+}
+
+bool Frame::applyXDoG(float sigma, float k)
+{
+    Kernel *k1 = Kernel::generateGaussian(sigma);
+    Kernel *k2 = Kernel::generateGaussian(sigma * k);
+    unsigned char *new_img = (unsigned char *)calloc(channels*width*height, sizeof(char));
+    float n1 = k1->get_norm();
+    int w1 = k1->get_width();
+    int h1 = k1->get_height();
+    int offx1 = (w1-1)/2;
+    int offy1 = (h1-1)/2;
+    
+
+    float n2 = k2->get_norm();
+    int w2 = k2->get_width();
+    int h2 = k2->get_height();
+    int offx2 = (w2-1)/2;
+    int offy2 = (h2-1)/2;
+
+    if(w2 < w1 || h2 < h1){
+        perror("Bad kernel sizes applyDoG()");
+        return false;
+    }
+
+    if(!new_img) {
+        return false;
+    }
+
+    int ix, iy;     //input access
+    int kx, ky;     //kernel access
+
+    for (iy=0 ; iy<height ; iy++) {
+        for (ix=0 ; ix<width ; ix++) {
+            float total1 = 0;
+            float total2 = 0;
+            int pos = iy*width*channels + ix*channels;
+
+            for(ky=0; ky<h2; ky++) {
+                int imgy1 = ((iy - offy1 + ky) + height) % height;
+                int imgy2 = ((iy - offy2 + ky) + height) % height;
+                for(kx=0; kx<w2; kx++) {
+                    if(ky<h1 && kx<w1){
+                        int imgx1 = (ix - offx1 + kx + width) % width;
+                        int pos2 = (imgy1*width*channels + imgx1*channels);
+
+                        float tmp = data[pos2 + 0] + data[pos2 + 1] + data[pos2 + 2];
+                        tmp *= k1->get(ky*w1 + kx);
+                        tmp/=3 * n1;
+
+                        total1+=tmp;
+                    }
+                    int imgx2 = (ix - offx2 + kx + width) % width;
+                    int pos2 = (imgy2*width*channels + imgx2*channels);
+
+                    float tmp = data[pos2 + 0] + data[pos2 + 1] + data[pos2 + 2];
+                    tmp *= k2->get(ky*w2 + kx);
+                    tmp/=3 * n2;
+
+                    total2+=tmp;
+                }
+            }
+            //Threshold DoG
+            float dog_val = threshold(total1, total2, 0);
+
+            //XDoG
+            float p = 4.7;
+
+            float g1, g2;
+            g1 = total1 / 255;
+            g2 = total2 / 255;
+
+            float u = (1 + p) * (g1) - p * (g2); //Sharpened Image
+            float t = 1;     //Threshold
+            float e = 0.3;   //Level above which is white
+            float phi = 0.01;//0.027; //Sharpness of transitions from black to white.
+
+            if(u < e)
+                t = tanh(phi * (u - e));
+
+            dog_val = (1 - t) * g1 + t * (g1-g2);
+            if(dog_val > 0.03)
+                dog_val = 1;
+            dog_val*=255;
             
             dog_val = (unsigned char)fmax(fmin(255, dog_val), 0);
 
             new_img[pos + 0] =
-            new_img[pos + 1] =
-            new_img[pos + 2] = dog_val;
+                new_img[pos + 1] =
+                new_img[pos + 2] = dog_val;
+        }
+
+    }
+    delete data;
+    data = new_img;
+    
+    return true;
+}
+
+
+bool Frame::applyColorXDoG(float sigma, float k)
+{
+    Kernel *k1 = Kernel::generateGaussian(sigma);
+    Kernel *k2 = Kernel::generateGaussian(sigma * k);
+    unsigned char *new_img = (unsigned char *)calloc(channels*width*height, sizeof(char));
+    float n1 = k1->get_norm();
+    int w1 = k1->get_width();
+    int h1 = k1->get_height();
+    int offx1 = (w1-1)/2;
+    int offy1 = (h1-1)/2;
+    
+
+    float n2 = k2->get_norm();
+    int w2 = k2->get_width();
+    int h2 = k2->get_height();
+    int offx2 = (w2-1)/2;
+    int offy2 = (h2-1)/2;
+
+    if(w2 < w1 || h2 < h1){
+        perror("Bad kernel sizes applyDoG()");
+        return false;
+    }
+
+    if(!new_img) {
+        return false;
+    }
+
+    int ix, iy;     //input access
+    int kx, ky;     //kernel access
+
+    for (iy=0 ; iy<height ; iy++) {
+        for (ix=0 ; ix<width ; ix++) {
+            float total1 = 0;
+            float total2 = 0;
+            int pos = iy*width*channels + ix*channels;
+
+            for(ky=0; ky<h2; ky++) {
+                int imgy1 = ((iy - offy1 + ky) + height) % height;
+                int imgy2 = ((iy - offy2 + ky) + height) % height;
+                for(kx=0; kx<w2; kx++) {
+                    if(ky<h1 && kx<w1){
+                        int imgx1 = (ix - offx1 + kx + width) % width;
+                        int pos2 = (imgy1*width*channels + imgx1*channels);
+
+                        float tmp = data[pos2 + 0] + data[pos2 + 1] + data[pos2 + 2];
+                        tmp *= k1->get(ky*w1 + kx);
+                        tmp/=3 * n1;
+
+                        total1+=tmp;
+                    }
+                    int imgx2 = (ix - offx2 + kx + width) % width;
+                    int pos2 = (imgy2*width*channels + imgx2*channels);
+
+                    float tmp = data[pos2 + 0] + data[pos2 + 1] + data[pos2 + 2];
+                    tmp *= k2->get(ky*w2 + kx);
+                    tmp/=3 * n2;
+
+                    total2+=tmp;
+                }
+            }
+            //Threshold DoG
+            float dog_val = threshold(total1, total2, 0);
+
+            //XDoG
+            float p = 4.7;
+
+            float g1, g2;
+            g1 = total1 / 255;
+            g2 = total2 / 255;
+
+            float u = (1 + p) * (g1) - p * (g2); //Sharpened Image
+            float t = 1;                         //Threshold
+            float e = 0.3;                       //Level above which is white
+            float phi = 0.01;//0.027;            //Sharpness of transitions from black to white.
+
+            if(u < e)
+                t = tanh(phi * (u - e));
+
+            dog_val = (1 - t) * g1 + t * (g1 - g2);
+            if(dog_val < 0.03){
+                new_img[pos + 0] = data[pos + 0];
+                new_img[pos + 1] = data[pos + 1];
+                new_img[pos + 2] = data[pos + 2];
+            } else {
+                dog_val = 0;
+
+                new_img[pos + 0] =
+                    new_img[pos + 1] =
+                    new_img[pos + 2] = dog_val;
+            }
+        }
+
+    }
+    delete data;
+    data = new_img;
+    
+    return true;
+}
+
+bool Frame::applyColorDoG(float sigma, float k)
+{
+    Kernel *k1 = Kernel::generateGaussian(sigma);
+    Kernel *k2 = Kernel::generateGaussian(sigma * k);
+    unsigned char *new_img = (unsigned char *)calloc(channels*width*height, sizeof(char));
+    float n1 = k1->get_norm();
+    int w1 = k1->get_width();
+    int h1 = k1->get_height();
+    int offx1 = (w1-1)/2;
+    int offy1 = (h1-1)/2;
+    
+
+    float n2 = k2->get_norm();
+    int w2 = k2->get_width();
+    int h2 = k2->get_height();
+    int offx2 = (w2-1)/2;
+    int offy2 = (h2-1)/2;
+
+    if(w2 < w1 || h2 < h1){
+        perror("Bad kernel sizes applyDoG()");
+        return false;
+    }
+
+    if(!new_img) {
+        return false;
+    }
+
+    int ix, iy;     //input access
+    int kx, ky;     //kernel access
+
+    for (iy=0 ; iy<height ; iy++) {
+        for (ix=0 ; ix<width ; ix++) {
+            float total1 = 0;
+            float total2 = 0;
+            int pos = iy*width*channels + ix*channels;
+
+            for(ky=0; ky<h2; ky++) {
+                int imgy1 = ((iy - offy1 + ky) + height) % height;
+                int imgy2 = ((iy - offy2 + ky) + height) % height;
+                for(kx=0; kx<w2; kx++) {
+                    if(ky<h1 && kx<w1){
+                        int imgx1 = (ix - offx1 + kx + width) % width;
+                        int pos2 = (imgy1*width*channels + imgx1*channels);
+
+                        float tmp = data[pos2 + 0] + data[pos2 + 1] + data[pos2 + 2];
+                        tmp *= k1->get(ky*w1 + kx);
+                        tmp/=3 * n1;
+
+                        total1+=tmp;
+                    }
+                    int imgx2 = (ix - offx2 + kx + width) % width;
+                    int pos2 = (imgy2*width*channels + imgx2*channels);
+
+                    float tmp = data[pos2 + 0] + data[pos2 + 1] + data[pos2 + 2];
+                    tmp *= k2->get(ky*w2 + kx);
+                    tmp/=3 * n2;
+
+                    total2+=tmp;
+                }
+            }
+            //Threshold DoG
+            float dog_val = threshold(total1, total2, 0);
+
+            //XDoG
+            //float p = 21.7;
+             float p = 15.7;
+             //p *= 255;
+             //dog_val = (1 + p) * total1 - p * total2;
+             float u = dog_val = (1 + p) * total1 - p * total2;
+             //float u = (1 + p) * (total1 / 255) - p * (total2 / 255);
+
+            //Trying some F
+             float t = 1;
+            //float u = total1 - total2;
+            //float e = 79.5;
+            float e = 200.5;
+            //float phi = 0.017;
+            float phi = 0.027;
+
+            if(u < e)
+                t =  tanh(phi * (u - e));
+
+            //t*=255;
+            
+            //dog_val = (1 - t) * total1 + t * total2;
+            //dog_val = (1 - t) * total1 + t * (total1 -total2);
+            if(t != 1){
+                dog_val = (1 + t) * total1 - t * (total1 - total2);
+            
+                dog_val = (unsigned char)fmax(fmin(255, dog_val), 0);
+
+                new_img[pos + 0] =
+                    new_img[pos + 1] =
+                    new_img[pos + 2] = dog_val;
+            } else {
+                new_img[pos + 0] = data[pos + 0];
+                new_img[pos + 1] = data[pos + 1];
+                new_img[pos + 2] = data[pos + 2];
+            }
+            
 
         }
 
@@ -627,10 +929,10 @@ bool Frame::applyDoG(float sigma, float k)
 
 float Frame::threshold(float a, float b, float t){
     float res;
-    if((a -b) > t){
-        res = 255 - (a - b);
+    if((a - b) > t){
+        res = 255;// - (a - b);
     } else {
-        res = a - b;
+        res = 0;
     }
     return res;
 }

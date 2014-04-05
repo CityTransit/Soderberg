@@ -22,6 +22,9 @@ public:
     bool applyKernel(Kernel *k);
     bool applyTwoToneKernel(Kernel *k);
     bool applyDoG(float s, float k);
+    bool applyXDoG(float s, float k);
+    bool applyColorXDoG(float s, float k);
+    bool applyColorDoG(float s, float k);
     bool applyBilateral(float s, float r);
     bool applyTemporalBilateral(float s, float r, float t, Frame *f, int fn);
     bool applyKuwahara(int a);
