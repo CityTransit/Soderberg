@@ -1,7 +1,9 @@
 # First make-file
 CC=clang++
-CFLAGS=-Wall #-O4 -fopenmp
+GCC=g++
+CFLAGS=-Wall -fopenmp
 IFLAGS=-I ../libpng/include
+AIFLAGS=-I /usr/include/libpng12
 LFLAGS=-l png
 LDFLAGS=-L ../libpng/lib
 
@@ -9,4 +11,7 @@ all:
 	$(CC) *.cpp $(CFLAGS) $(LDFLAGS) $(LFLAGS) $(IFLAGS) -o ritter
 
 debug:
-	$(CC) *.cpp $(CFLAGS) $(LDFLAGS) $(LFLAGS) $(LFLAGS) -g -o ritter
+	$(CC) *.cpp $(CFLAGS) $(LDFLAGS) $(LFLAGS) $(IFLAGS) -g -o ritter
+
+aviary:
+	$(GCC) *.cpp $(CFLAGS) $(LFLAGS) $(AIFLAGS) -oritter
