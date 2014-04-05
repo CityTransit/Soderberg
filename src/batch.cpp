@@ -39,13 +39,14 @@ int main(int argc, char *argv[])
 
             Frame f;
 
-            snprintf(outname, 100, "%s/%s%07d.png", in_folder, prefix, i);
+            snprintf(outname, 100, "%s/%s%05d.png", in_folder, prefix, i);
             f.open(outname);
 
             printf("Processing file %s...\n", outname);
-            f.applyKuwahara(3);
+            //f.applyKuwahara(3);
+            f.applyColorDoG(4, 1.6);
 
-            snprintf(outname, 100, "%s/%s%07d.png", out_folder, prefix, i);
+            snprintf(outname, 100, "%s/%s%05d.png", out_folder, prefix, i);
             f.save(outname, outname);
     }
 
