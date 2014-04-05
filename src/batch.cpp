@@ -6,7 +6,6 @@
 */
 
 
-#include <dirent.h>
 #include "png.h"
 #include "frame.h"
 #include <stdlib.h>
@@ -16,26 +15,35 @@
 
 #include "kernel.h"
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
-    if(argc < 3) exit(1);
+    if(argc < 6) {
+        printf("ERROR: Invalid number of arguments.\n\tUsage: %s start end prefix in_folder out_folder\n", argv[0]);
+        return 0;
+    }
 
-    Frame f;
-    //Kernel *kg = Kernel::generateGaussian(10);
-    //Kernel *kg2 = Kernel::generateGaussian(12 * 2);
-    //Kernel *k = Kernel::generateLoG(0.8, 5);
-    
-    f.open(argv[1]);
-    //f.applyTwoToneKernel(k);
-    //f.applyKernel(kg);
-    //f.applyBilateral(32, 0.2);
-    //char* test_file_name = "test_bilateral.png";
-    //f.save(test_file_name, test_file_name);
+    char outname[100];
+    const int start = atoi(argv[1]);
+    const int end = atoi(argv[2]);
+    const char *prefix = argv[3];
+    const char *in_folder = argv[4];
+    const char *out_folder = argv[5];
 
-    f.applyColorDoG(4, 1.6);
-    //    f.applyColorXDoG(8, 1.6);
-    f.save(argv[2], argv[2]);
+    printf ("Opening files...\n");
+    #pragma omp parallel for private(outname)
+    for(int i=start; i<end; i++) {
 
+            Frame f;
+
+            snprintf(outname, 100, "%s/%s%07d.png", in_folder, prefix, i);
+            f.open(outname);
+
+            printf("Processing file %s...\n", outname);
+            f.applyKuwahara(3);
+
+            snprintf(outname, 100, "%s/%s%07d.png", out_folder, prefix, i);
+            f.save(outname, outname);
+    }
 
     return 0;
 }
