@@ -27,6 +27,7 @@ public:
     bool applyColorDoG(float s, float k);
     bool applyBilateral(float s, float r);
     bool applyTemporalBilateral(float s, float r, float t, Frame *f, int fn);
+    bool applyKuwahara(int a);
     float threshold(float a, float b, float t);
     static float gaussian(float n, float sigma);
 private:
