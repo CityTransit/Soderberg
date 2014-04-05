@@ -9,7 +9,6 @@
 #include <math.h>
 #include <omp.h>
 
-#include <dirent.h>
 #include "png.h"
 #include "frame.h"
 #include <stdlib.h>
@@ -20,47 +19,34 @@
 
 #include "kernel.h"
 
-int main(int argc, char *argv)
+int main(int argc, char *argv[])
 {
-    if(argc < 4) {
-        printf("ERROR: Invalid number of arguments.\n\tUsage: %s num_frames in_folder out_folder\n", argv[0]);
+    if(argc < 6) {
+        printf("ERROR: Invalid number of arguments.\n\tUsage: %s start end prefix in_folder out_folder\n", argv[0]);
+        return 0;
     }
 
-    struct dirent *ent;
-    DIR *dir;
-    char outname[50];
-    const int num_frames = atoi(argv[1]);
-    const char *in_folder = argv[2];
-    const char *out_folder = argv[3];
+    char outname[100];
+    const int start = atoi(argv[1]);
+    const int end = atoi(argv[2]);
+    const char *prefix = argv[3];
+    const char *in_folder = argv[4];
+    const char *out_folder = argv[5];
 
-    printf ("Opening files...");
-    if ((dir = opendir (in_folder)) != NULL) {
-        readdir(dir); // .
-        readdir(dir); // ..
+    printf ("Opening files...\n");
+    #pragma omp parallel for private(outname)
+    for(int i=start; i<end; i++) {
 
-        #pragma omp parallel for private(ent)
-        for(int i=0; i<num_frames; i++) {
-            #pragma omp critical
-            {
-                 ent = readdir(dir);
-            }
-    
-            if ( ent != NULL) {
-                Frame f;
-                snprintf(outname, 100, "%s/%s", in_folder, ent->d_name);
-                f.open(outname);
-                printf("Processing file %s...\n", outname);
+            Frame f;
 
-                f.applyKuwahara(3);
+            snprintf(outname, 100, "%s/%s%07d.png", in_folder, prefix, i);
+            f.open(outname);
 
-                snprintf(outname, 100, "%s/%s", out_folder, ent->d_name);
-                f.save(outname, outname);
-            }
-        }
-        closedir (dir);
-    } else {
-        fprintf(stderr, "Error: Unable to open input directory.\n");
-        return EXIT_FAILURE;
+            printf("Processing file %s...\n", outname);
+            f.applyKuwahara(3);
+
+            snprintf(outname, 100, "%s/%s%07d.png", out_folder, prefix, i);
+            f.save(outname, outname);
     }
 
     return 0;
