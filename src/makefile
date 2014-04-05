@@ -1,7 +1,7 @@
 # First make-file
 CC=clang++
 GCC=g++
-CFLAGS=-Wall -fopenmp
+CFLAGS=-Wall 
 IFLAGS=-I ../libpng/include
 AIFLAGS=-I /usr/include/libpng12
 LFLAGS=-l png

@@ -5,9 +5,6 @@
  *  - http://www.piko3d.net/tutorials/libpng-tutorial-loading-png-files-from-streams/#Loading
 */
 
-#include <stdint.h>
-#include <math.h>
-#include <omp.h>
 
 #include "png.h"
 #include "frame.h"
@@ -15,7 +12,6 @@
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
-#include <vector>
 
 #include "kernel.h"
 

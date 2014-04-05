@@ -615,6 +615,8 @@ bool Frame::applyDoG(float sigma, float k)
 
     }
     delete data;
+    delete k1;
+    delete k2;
     data = new_img;
     
     return true;
@@ -712,6 +714,8 @@ bool Frame::applyXDoG(float sigma, float k)
 
     }
     delete data;
+    delete k1;
+    delete k2;
     data = new_img;
     
     return true;
@@ -812,6 +816,8 @@ bool Frame::applyColorXDoG(float sigma, float k)
 
     }
     delete data;
+    delete k1;
+    delete k2;
     data = new_img;
     
     return true;
@@ -877,32 +883,17 @@ bool Frame::applyColorDoG(float sigma, float k)
                     total2+=tmp;
                 }
             }
-            //Threshold DoG
+
             float dog_val = threshold(total1, total2, 0);
-
-            //XDoG
-            //float p = 21.7;
-             float p = 15.7;
-             //p *= 255;
-             //dog_val = (1 + p) * total1 - p * total2;
-             float u = dog_val = (1 + p) * total1 - p * total2;
-             //float u = (1 + p) * (total1 / 255) - p * (total2 / 255);
-
-            //Trying some F
-             float t = 1;
-            //float u = total1 - total2;
-            //float e = 79.5;
+            float p = 15.7;
+            float u = dog_val = (1 + p) * total1 - p * total2;
+            float t = 1;
             float e = 200.5;
-            //float phi = 0.017;
             float phi = 0.027;
 
             if(u < e)
                 t =  tanh(phi * (u - e));
 
-            //t*=255;
-            
-            //dog_val = (1 - t) * total1 + t * total2;
-            //dog_val = (1 - t) * total1 + t * (total1 -total2);
             if(t != 1){
                 dog_val = (1 + t) * total1 - t * (total1 - total2);
             
@@ -922,6 +913,8 @@ bool Frame::applyColorDoG(float sigma, float k)
 
     }
     delete data;
+    delete k1;
+    delete k2;
     data = new_img;
     
     return true;
