@@ -5,9 +5,6 @@
  *  - http://www.piko3d.net/tutorials/libpng-tutorial-loading-png-files-from-streams/#Loading
 */
 
-#include <stdint.h>
-#include <math.h>
-#include <omp.h>
 
 #include <dirent.h>
 #include "png.h"
@@ -16,52 +13,29 @@
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
-#include <vector>
 
 #include "kernel.h"
 
-int main(int argc, char *argv)
+int main(int argc, char* argv[])
 {
-    if(argc < 4) {
-        printf("ERROR: Invalid number of arguments.\n\tUsage: %s num_frames in_folder out_folder\n", argv[0]);
-    }
+    if(argc < 3) exit(1);
 
-    struct dirent *ent;
-    DIR *dir;
-    char outname[50];
-    const int num_frames = atoi(argv[1]);
-    const char *in_folder = argv[2];
-    const char *out_folder = argv[3];
-
-    printf ("Opening files...");
-    if ((dir = opendir (in_folder)) != NULL) {
-        readdir(dir); // .
-        readdir(dir); // ..
-
-        #pragma omp parallel for private(ent)
-        for(int i=0; i<num_frames; i++) {
-            #pragma omp critical
-            {
-                 ent = readdir(dir);
-            }
+    Frame f;
+    //Kernel *kg = Kernel::generateGaussian(10);
+    //Kernel *kg2 = Kernel::generateGaussian(12 * 2);
+    //Kernel *k = Kernel::generateLoG(0.8, 5);
     
-            if ( ent != NULL) {
-                Frame f;
-                snprintf(outname, 100, "%s/%s", in_folder, ent->d_name);
-                f.open(outname);
-                printf("Processing file %s...\n", outname);
+    f.open(argv[1]);
+    //f.applyTwoToneKernel(k);
+    //f.applyKernel(kg);
+    //f.applyBilateral(32, 0.2);
+    //char* test_file_name = "test_bilateral.png";
+    //f.save(test_file_name, test_file_name);
 
-                f.applyKuwahara(3);
+    f.applyColorDoG(4, 1.6);
+    //    f.applyColorXDoG(8, 1.6);
+    f.save(argv[2], argv[2]);
 
-                snprintf(outname, 100, "%s/%s", out_folder, ent->d_name);
-                f.save(outname, outname);
-            }
-        }
-        closedir (dir);
-    } else {
-        fprintf(stderr, "Error: Unable to open input directory.\n");
-        return EXIT_FAILURE;
-    }
 
     return 0;
 }
