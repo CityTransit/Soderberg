@@ -6,6 +6,13 @@
 #include <math.h>
 #include "gauss.h"
 
+#define LENGTH_2(v) sqrt(v[0]*v[0] + v[1]*v[1])
+#define LENGTH_3(v) sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2])
+#define DOT_2(u,v) (u[0]*v[0] + u[1]*v[1])
+#define DOT_3(u,v) (u[0]*v[0] + u[1]*v[1] + u[2]*v[2])
+#define MAT_MULT_22(u,v) {u[0]*v[0] + u[1]*v[2], u[0]*v[1] + u[1]*v[3], u[2]*v[0] + u[3]*v[2], u[2]*v[1] + u[3]*v[3]}
+#define MAT_MULT_21(u,v) {u[0]*v[0] + u[1]*v[1], u[2]*v[0] + u[3]*v[1]}
+
 Frame::Frame(Frame *copy)
 {
     this->width = copy->width;
@@ -1018,6 +1025,228 @@ bool Frame::applyKuwahara(int a)
             new_img[pos + 2] = (unsigned char)fmax(fmin(255, meanB[min]), 0);
 		}
 	}
+    delete data;
+    data = new_img;
+    
+    return true;
+}
+
+//http://code.google.com/p/gpuakf/source/browse/glsl/akf_v2.glsl
+bool Frame::applyAnisotropicKuwahara(int radius, float q)
+{
+    unsigned char *new_img = (unsigned char *)calloc((channels+1)*width*height, sizeof(char));
+    unsigned char *tfm = (unsigned char *)calloc((channels+1)*width*height, sizeof(char));
+    Frame K0123; K0123.open("../krnlx4_32n8.png");
+
+    unsigned char pix[3];
+
+    if(!new_img || !tfm) {
+        return false;
+    }
+
+	for (int iy=0 ; iy<height ; iy++) {
+		for (int ix=0 ; ix<width ; ix++) {
+            int pos = iy*width*channels + ix*channels;
+            int pos2 = iy*width*(channels+1) + ix*(channels+1);
+
+            pix[0] = data[pos + 0];
+            pix[1] = data[pos + 1];
+            pix[2] = data[pos + 1];
+
+            float lambda1 = 0.5 * (pix[1] + pix[0] + sqrt(pix[1]*pix[1] - 2.0*pix[0]*pix[1] + pix[0]*pix[0] + 4.0*pix[2]*pix[2]));
+            float lambda2 = 0.5 * (pix[1] + pix[0] - sqrt(pix[1]*pix[1] - 2.0*pix[0]*pix[1] + pix[0]*pix[0] + 4.0*pix[2]*pix[2]));
+
+            float v[2] = {lambda1 - pix[0], - pix[2]};
+
+            if (LENGTH_2(v) > 0.0) {
+                v[0] /= (float)LENGTH_2(v);
+                v[1] /= (float)LENGTH_2(v);
+            } else {
+                v[0] = 0.0;
+                v[1] = 1.0;
+            }
+
+            float phi = atan(v[1]/v[0]);
+            float A = (lambda1 + lambda2 > 0.0) ? (lambda1 - lambda2) / (lambda1 + lambda2) : 0.0;
+
+            tfm[pos2 + 0] = (unsigned char)fmax(fmin(255, v[0]), 0);
+            tfm[pos2 + 1] = (unsigned char)fmax(fmin(255, v[1]), 0);
+            tfm[pos2 + 2] = (unsigned char)fmax(fmin(255, phi), 0);
+            tfm[pos2 + 3] = (unsigned char)fmax(fmin(255, A), 0);
+        }
+    }
+
+	for (int iy=0 ; iy<height ; iy++) {
+		for (int ix=0 ; ix<width ; ix++) {
+            int pos = iy*width*channels + ix*channels;
+            int pos2 = iy*width*(channels+1) + ix*(channels+1);
+
+            //src_size = vec2(textureSize2D(src, 0));
+            //vec2 uv = gl_FragCoord.xy / src_size;
+
+            float m[8][4];
+            float s[8][3];
+
+            for(int ii=0; ii<8; ii++) {
+                int jj = 0;
+                for(jj=0; jj<4; jj++) {
+                    m[ii][jj] = 0;
+                    s[ii][jj] = 0;
+                }
+                m[ii][jj] = 0;
+            }
+
+            float t[4] = {tfm[pos2 + 0], tfm[pos2 + 1], tfm[pos2 + 2], tfm[pos2 + 3]};
+            float c[4] = {data[pos + 0], data[pos + 1], data[pos + 2], data[pos + 3]};
+
+            float a = radius;// * clamp((alpha + t.w) / alpha, 0.1, 2.0);
+            float b = radius;// * clamp(alpha / (alpha + t.w), 0.1, 2.0);
+
+            float cos_phi = cos(t[2]);
+            float sin_phi = sin(t[2]);
+
+            float R[4] = {cos_phi, -sin_phi, sin_phi, cos_phi};
+            float S[4] = {0.5/a, 0.0, 0.0, 0.5/b};
+            float SR[4] = MAT_MULT_22(S, R);
+
+            int max_x = int(sqrt(a*a * cos_phi*cos_phi + b*b * sin_phi*sin_phi));
+            int max_y = int(sqrt(a*a * sin_phi*sin_phi + b*b * cos_phi*cos_phi));
+
+            //vec3 c = texture2D(src, uv).rgb;
+            float w = K0123.get(K0123.getHeight()/2.0f, K0123.getWidth()/2.0f, 0);
+
+            for (int k = 0; k < 8; ++k) {
+                m[k][0] += c[0] * w;
+                m[k][1] += c[1] * w;
+                m[k][2] += c[2] * w;
+                m[k][3] += w;
+                s[k][0] += c[0] * c[0] * w;
+                s[k][1] += c[1] * c[1] * w;
+                s[k][2] += c[2] * c[2] * w;
+            }
+
+            for (int j = 0; j <= max_y; ++j) {
+                for (int i = -max_x; i <= max_x; ++i) {
+                    if ((j !=0) || (i > 0)) {
+                        //float v[2] = {SR*i, SR*j};
+                        float temp[2] = {i,j};
+                        float v[2] = MAT_MULT_21(SR, temp);
+
+                        if (DOT_2(v,v) <= 0.25) {
+                            int kpos = pos + (i*width*channels + j*channels);
+                            float c0[3] = {data[kpos + 0], data[kpos + 1], data[kpos + 2]};
+                            kpos = pos - (i*width*channels + j*channels);
+                            float c1[3] = {data[kpos + 0], data[kpos + 1], data[kpos + 2]};
+                            //vec3 c0 = texture2D(src,uv + vec2(i,j)/src_size).rgb;
+                            //vec3 c1 = texture2D(src,uv - vec2(i,j)/src_size).rgb;
+                            //vec3 cc0 = c0 * c0;
+                            //vec3 cc1 = c1 * c1;
+                            float cc0[3] = {c0[0]*c0[0], c0[1]*c0[1], c0[2]*c0[2]};
+                            float cc1[3] = {c1[0]*c1[0], c1[1]*c1[1], c1[2]*c1[2]};
+
+                            int kix = (0.5+v[0])/K0123.getWidth();
+                            int kiy = (0.5+v[1])/K0123.getWidth();
+                            float w0123[4] = {K0123.get(kix, kiy, 0),K0123.get(kix, kiy, 1),K0123.get(kix, kiy, 2),K0123.get(kix, kiy, 3)};
+                            //vec4 w0123 = texture2D(K0123, vec2(0.5, 0.5) + v);
+                            for (int k = 0; k < 4; ++k) {
+                                m[k][0] += c0[0]*w0123[k];
+                                m[k][1] += c0[1]*w0123[k];
+                                m[k][2] += c0[2]*w0123[k];
+                                m[k][3] += w0123[k];
+                                s[k][0] += cc0[0]*w0123[k];
+                                s[k][1] += cc0[1]*w0123[k];
+                                s[k][2] += cc0[2]*w0123[k];
+                                //m[k] = {m[k][0] + c0[0]*w0123[k], m[k][1] + c0[1]*w0123[k], mk[2] + c0[2]*w0123[k], m[3] + w0123[k]};
+                                //s[k] = {s[k][0] + cc0[0]*w0123[k], s[k][1] + cc0[1]*w0123[k], sk[2] + cc0[2]*w0123[k]};
+
+                                //vec4(c0 * w0123[k], w0123[k]);
+                                //s[k] += cc0 * w0123[k];
+                            }
+                            for (int k = 4; k < 8; ++k) {
+                                m[k][0] += c1[0]*w0123[k-4];
+                                m[k][1] += c1[1]*w0123[k-4];
+                                m[k][2] += c1[2]*w0123[k-4];
+                                m[k][3] += w0123[k-4];
+                                s[k][0] += cc1[0]*w0123[k-4];
+                                s[k][1] += cc1[1]*w0123[k-4];
+                                s[k][2] += cc1[2]*w0123[k-4];
+                                //m[k] = {m[k][0] + c1[0]*w0123[k-4], m[k][1] + c1[1]*w0123[k-4], mk[2] + c1[2]*w0123[k-4], m[3] + w0123[k-4]};
+                                //s[k] = {s[k][0] + cc1[0]*w0123[k-4], s[k][1] + cc1[1]*w0123[k-4], sk[2] + cc1[2]*w0123[k-4]};
+
+                                //m[k] += vec4(c1 * w0123[k-4], w0123[k-4]);
+                                //s[k] += cc1 * w0123[k-4];
+                            }
+
+                            kix = (0.5-v[0])/K0123.getWidth();
+                            kiy = (0.5-v[1])/K0123.getWidth();
+                            float w4567[4] = {K0123.get(kix, kiy, 0),K0123.get(kix, kiy, 1),K0123.get(kix, kiy, 2),K0123.get(kix, kiy, 3)};
+                            //vec4 w4567 = texture2D(K0123, vec2(0.5, 0.5) - v);
+                            for (int k = 4; k < 8; ++k) {
+                                m[k][0] += c0[0]*w4567[k-4];
+                                m[k][1] += c0[1]*w4567[k-4];
+                                m[k][2] += c0[2]*w4567[k-4];
+                                m[k][3] += w4567[k-4];
+                                s[k][0] += cc0[0]*w4567[k-4];
+                                s[k][1] += cc0[1]*w4567[k-4];
+                                s[k][2] += cc0[2]*w4567[k-4];
+                                //m[k] = {m[k][0] + c0[0]*w4567[k-4], m[k][1] + c0[1]*w4567[k-4], mk[2] + c0[2]*w4567[k-4], m[3] + w4567[k-4]};
+                                //s[k] = {s[k][0] + cc0[0]*w4567[k-4], s[k][1] + cc0[1]*w4567[k-4], sk[2] + cc0[2]*w4567[k-4]};
+
+
+                                //m[k] += vec4(c0 * w4567[k-4], w4567[k-4]);
+                                //s[k] += cc0 * w4567[k-4];
+                            }
+                            for (int k = 0; k < 4; ++k) {
+                                m[k][0] += c1[0]*w4567[k];
+                                m[k][1] += c1[1]*w4567[k];
+                                m[k][2] += c1[2]*w4567[k];
+                                m[k][3] += w4567[k];
+                                s[k][0] += cc1[0]*w4567[k];
+                                s[k][1] += cc1[1]*w4567[k];
+                                s[k][2] += cc1[2]*w4567[k];
+
+                                //m[k] += vec4(c1 * w4567[k], w4567[k]);
+                                //s[k] += cc1 * w4567[k];
+                            }
+                        }
+                    }
+                }
+            }
+
+            //vec4 o = vec4(0.0);
+            float o[4] = {0};
+            for (int k = 0; k < 8; ++k) {
+                m[k][0] /= m[k][3];
+                m[k][1] /= m[k][3];
+                m[k][2] /= m[k][3];
+                s[k][0] = abs(s[k][0]/m[k][3] - m[k][0]*m[k][0]);
+                s[k][1] = abs(s[k][1]/m[k][3] - m[k][1]*m[k][1]);
+                s[k][2] = abs(s[k][2]/m[k][3] - m[k][2]*m[k][2]);
+                
+                //m[k].rgb /= m[k].w;
+                //s[k] = abs(s[k] / m[k].w - m[k].rgb * m[k].rgb);
+
+                //float sigma2 = sqrt(s[k].r) + sqrt(s[k].g) + sqrt(s[k].b);
+                //float w = 1.0 / (1.0 + pow(255.0 * sigma2, q));
+                float sigma2 = sqrt(s[k][0]) + sqrt(s[k][1]) + sqrt(s[k][2]);
+                float w = 1.0f / (1.0f + pow(255.0f * sigma2, q));
+
+                //o += vec4(m[k].rgb * w, w);
+                o[0] += m[k][0]*w;
+                o[1] += m[k][1]*w;
+                o[2] += m[k][2]*w;
+                o[3] += w;
+            }
+            //printf("o = %f %f %f %f\n", o[0], o[1], o[2], o[3]);
+
+            //gl_FragColor = vec4(o.rgb / o.w, 1.0);
+            new_img[pos + 0] = (unsigned char)fmax(fmin(255, o[0]/o[3]), 0);
+            new_img[pos + 1] = (unsigned char)fmax(fmin(255, o[1]/o[3]), 0);
+            new_img[pos + 2] = (unsigned char)fmax(fmin(255, o[2]/o[3]), 0);
+        }
+    }
+
+    delete tfm;
     delete data;
     data = new_img;
     
