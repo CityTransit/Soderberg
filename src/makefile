@@ -15,4 +15,4 @@ debug:
 	$(CC) *.cpp $(CFLAGS) $(LDFLAGS) $(LFLAGS) $(IFLAGS) -g -o ritter
 
 aviary:
-	$(GCC) *.cpp $(AFLAGS) $(LFLAGS) $(AIFLAGS) -oritter
+	$(GCC) *.cpp $(AFLAGS) $(LFLAGS) $(AIFLAGS) -oritter -D USE_OPEN_MP

@@ -1,10 +1,6 @@
-/*
- *
- * Code ruthlessly stolen from:
- *  - http://www.labbookpages.co.uk/software/imgProc/libPNG.html
- *  - http://www.piko3d.net/tutorials/libpng-tutorial-loading-png-files-from-streams/#Loading
-*/
-
+#ifdef USE_OPEN_MP
+#include <omp.h>
+#endif
 
 #include "png.h"
 #include "frame.h"
@@ -30,7 +26,10 @@ int main(int argc, char *argv[])
     const char *out_folder = argv[5];
 
     printf ("Opening files...\n");
+
+#ifdef USE_OPEN_MP
     #pragma omp parallel for private(outname)
+#endif
     for(int i=start; i<end; i++) {
 
             Frame f;
