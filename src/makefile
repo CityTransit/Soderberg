@@ -1,7 +1,8 @@
 # First make-file
 CC=clang++
 GCC=g++
-CFLAGS=-Wall -fopenmp
+CFLAGS=-Wall 
+AFLAGS=-Wall -fopenmp
 IFLAGS=-I ../libpng/include
 AIFLAGS=-I /usr/include/libpng12
 LFLAGS=-l png
@@ -14,4 +15,4 @@ debug:
 	$(CC) *.cpp $(CFLAGS) $(LDFLAGS) $(LFLAGS) $(IFLAGS) -g -o ritter
 
 aviary:
-	$(GCC) *.cpp $(CFLAGS) $(LFLAGS) $(AIFLAGS) -oritter
+	$(GCC) *.cpp $(AFLAGS) $(LFLAGS) $(AIFLAGS) -oritter -D USE_OPEN_MP
