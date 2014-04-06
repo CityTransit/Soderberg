@@ -701,8 +701,10 @@ bool Frame::applyXDoG(float sigma, float k)
                 t = tanh(phi * (u - e));
 
             dog_val = (1 - t) * g1 + t * (g1-g2);
-            if(dog_val > 0.03)
+            if(dog_val < 0.03)
                 dog_val = 1;
+            else
+                dog_val = 0;
             dog_val*=255;
             
             dog_val = (unsigned char)fmax(fmin(255, dog_val), 0);
