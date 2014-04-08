@@ -1121,7 +1121,7 @@ unsigned char Frame::get(int x, int y, int c)
  * Applies a Kuwahara filter to the image
  * 
  * INPUT:
- * float a: unused
+ * float a: width/height of each region explored
  * 
  * EXPECTATIONS:
  * n/a
@@ -1234,14 +1234,15 @@ bool Frame::applyKuwahara(int a)
  * n/a
  *
  * NOTE: 
- * n/a
+ * DOES NOT CURRENTLY WORK!!
+ * Much of the current code was heavily based on GLSL implementations in an attempt to have a working
+ * filter by the due date. See Report for more information.
  * 
  * OUTPUT:
  * Applies Kuwahara filter to global image: char* data 
  * 
  */
 
-//http://code.google.com/p/gpuakf/source/browse/glsl/akf_v2.glsl
 bool Frame::applyAnisotropicKuwahara(int radius, float q)
 {
     unsigned char *new_img = (unsigned char *)calloc((channels+1)*width*height, sizeof(char));
