@@ -255,6 +255,25 @@ finalise:
 	return code;
 }
 
+/* flip()
+ *
+ * PURPOSE
+ * Flips the image
+ * 
+ * INPUT:
+ * n/a
+ * 
+ * EXPECTATIONS:
+ * n/a
+ * 
+ * NOTE: 
+ * n/a
+ * 
+ * OUTPUT:
+ * Applies filter to global image: char* data 
+ * 
+ */
+
 bool Frame::flip()
 {
     unsigned char *new_img = (unsigned char *)calloc(channels*width*height, sizeof(char));
@@ -279,6 +298,27 @@ bool Frame::flip()
     return true;
 }
 
+/* applyBilateral(float S, float R)
+ * 
+ * PURPOSE:
+ * Applies a bilateral filter to the image
+ * 
+ * INPUT:
+ * S represents the spatial distance of the Gaussian kernel
+ * R represents the standard deviation of pixel values
+ * 
+ * EXPECTATIONS:
+ * S should be a positive natural number, with greater values giving increased smoothness
+ * R should be in range [0...1], with lower values giving increased blur
+ *
+ * NOTE: 
+ * Larger S values have a negative impact on performance
+ * 
+ * OUTPUT:
+ * Applies filter to global image: char* data 
+ * 
+ */
+
 bool Frame::applyBilateral(float s, float r)
 {
     unsigned char *new_img = (unsigned char *)calloc(channels*width*height, sizeof(char));
@@ -296,6 +336,7 @@ bool Frame::applyBilateral(float s, float r)
     int endx, endy;
     float pix_gauss, clr_gauss, gauss;
 
+    //Iterate over the original image
     for (iy=0; iy<height; iy++) {
         for (ix=0; ix<width; ix++) {
             double total[3] = {0};
@@ -309,11 +350,14 @@ bool Frame::applyBilateral(float s, float r)
             ky = fmax(0, ky);
             endy = fmin(height-1, endy);
 
+            //Iterate over the Kernel
             for(; ky<=endy; ky++) {
                 kx = ix - (s-1)/2;
                 kx = fmax(0, kx); 
                 endx = fmin(width-1, endx);
                 for(; kx<=endx; kx++) {
+
+                    //Apply the bilateral
                     int knl_pos = ky*width*channels + kx*channels;
                     pix_gauss = gaussian(sqrt(pow((ix - kx), 2) + pow((iy - ky), 2)), s);
 
@@ -455,6 +499,25 @@ float Frame::gaussian(float x, float sigma){
     return exp(- x*x / (2*sigma*sigma) ) / (2*M_PI*sigma);
 }
 
+/* applyKernel(Kernel *k)
+ * 
+ * PURPOSE:
+ * Applies any pre-generated Kernel to the image
+ * 
+ * INPUT:
+ * A pre-generated kernel of type Kernel*
+ * 
+ * EXPECTATIONS:
+ * k should have equal height and width
+  *
+ * NOTE: 
+ * Larger kernels will have a negative impact on performance
+ * 
+ * OUTPUT:
+ * Applies kernel to global image: char* data 
+ * 
+ */
+
 bool Frame::applyKernel(Kernel *k)
 {
     unsigned char *new_img = (unsigned char *)calloc(channels*width*height, sizeof(char));
@@ -497,6 +560,25 @@ bool Frame::applyKernel(Kernel *k)
     
     return true;
 }
+
+/* applyTwoToneKernel(Kernel *k)
+ * 
+ * PURPOSE:
+ * Applies any pre-generated Kernel to the image, and thresholds the result to black/white
+ * 
+ * INPUT:
+ * A pre-generated kernel of type Kernel*
+ * 
+ * EXPECTATIONS:
+ * k should have equal height and width
+ *
+ * NOTE: 
+ * Larger kernels will have a negative impact on performance
+ * 
+ * OUTPUT:
+ * Applies kernel to global image: char* data 
+ * 
+ */
 
 bool Frame::applyTwoToneKernel(Kernel *k)
 {
@@ -549,6 +631,26 @@ bool Frame::applyTwoToneKernel(Kernel *k)
     return true;
 }
 
+/* applyDoG(float sigma, float k)
+ * 
+ * PURPOSE:
+ * Applies a DoG filter to the image, thresholds the result in B&W
+ * 
+ * INPUT:
+ * float sigma: The size of Kernel A
+ * float k: The scalar with which to augment the size of Kernel B
+ * 
+ * EXPECTATIONS:
+ * k should be 1 or above, (1 will have no effect)
+ * It is preferable to have the image pre-filtered with a bilateral filter
+ *
+ * NOTE: 
+ * Larger sigma or k values will have a negative impact on performance
+ * 
+ * OUTPUT:
+ * Applies DoG edge finding to global image: char* data 
+ * 
+ */
 
 bool Frame::applyDoG(float sigma, float k)
 {
@@ -628,6 +730,30 @@ bool Frame::applyDoG(float sigma, float k)
     
     return true;
 }
+
+/* applyXDoG(float sigma, float k)
+ * 
+ * PURPOSE:
+ * Applies a XDoG filter to the image
+ * XDoG is a DoG filter augmented with values for customization
+ * and smoother color transitions.
+ * Thresholds the result in B&W
+ * 
+ * INPUT:
+ * float sigma: The size of Kernel A
+ * float k: The scalar with which to augment the size of Kernel B
+ * 
+ * EXPECTATIONS:
+ * k should be 1 or above, (1 will have no effect)
+ * It is preferable to have the image pre-filtered with a bilateral filter
+ *
+ * NOTE: 
+ * Larger sigma or k values will have a negative impact on performance
+ * 
+ * OUTPUT:
+ * Applies XDoG edge finding to global image: char* data 
+ * 
+ */
 
 bool Frame::applyXDoG(float sigma, float k)
 {
@@ -730,6 +856,29 @@ bool Frame::applyXDoG(float sigma, float k)
     return true;
 }
 
+/* applyColorXDoG(float sigma, float k)
+ * 
+ * PURPOSE:
+ * Applies a XDoG filter to the image
+ * XDoG is a DoG filter augmented with values for customization
+ * and smoother color transitions.
+ * Thresholds the result to either black or the original pixel color
+ * 
+ * INPUT:
+ * float sigma: The size of Kernel A
+ * float k: The scalar with which to augment the size of Kernel B
+ * 
+ * EXPECTATIONS:
+ * It is preferable to have the image pre-filtered with a bilateral filter
+ * k should be 1 or above, (1 will have no effect)
+ *
+ * NOTE: 
+ * Larger sigma or k values will have a negative impact on performance
+ * 
+ * OUTPUT:
+ * Applies XDoG edge finding to global image: char* data 
+ * 
+ */
 
 bool Frame::applyColorXDoG(float sigma, float k)
 {
@@ -795,7 +944,7 @@ bool Frame::applyColorXDoG(float sigma, float k)
             float dog_val = threshold(total1, total2, 0);
 
             //XDoG
-            float p = 4.7;
+            float p = 25;//4.7;
 
             float g1, g2;
             g1 = total1 / 255;
@@ -803,14 +952,14 @@ bool Frame::applyColorXDoG(float sigma, float k)
 
             float u = (1 + p) * (g1) - p * (g2); //Sharpened Image
             float t = 1;                         //Threshold
-            float e = 0.3;                       //Level above which is white
-            float phi = 0.01;//0.027;            //Sharpness of transitions from black to white.
+            float e = 0.2;                       //Level above which is white
+            float phi = 0.1;//0.01;//0.027;            //Sharpness of transitions from black to white.
 
             if(u < e)
                 t = tanh(phi * (u - e));
 
             dog_val = (1 - t) * g1 + t * (g1 - g2);
-            if(dog_val < 0.03){
+            if(dog_val < 0.02){
                 new_img[pos + 0] = data[pos + 0];
                 new_img[pos + 1] = data[pos + 1];
                 new_img[pos + 2] = data[pos + 2];
@@ -831,6 +980,28 @@ bool Frame::applyColorXDoG(float sigma, float k)
     
     return true;
 }
+
+/* applyColorDoG(float sigma, float k)
+ * 
+ * PURPOSE:
+ * Applies a DoG filter to the image
+  * Thresholds the result to either black or the original pixel color
+ * 
+ * INPUT:
+ * float sigma: The size of Kernel A
+ * float k: The scalar with which to augment the size of Kernel B
+ * 
+ * EXPECTATIONS:
+ * It is preferable to have the image pre-filtered with a bilateral filter
+ * k should be 1 or above, (1 will have no effect)
+ *
+ * NOTE: 
+ * Larger sigma or k values will have a negative impact on performance
+ * 
+ * OUTPUT:
+ * Applies DoG edge finding to global image: char* data 
+ * 
+ */
 
 bool Frame::applyColorDoG(float sigma, float k)
 {
@@ -944,6 +1115,25 @@ unsigned char Frame::get(int x, int y, int c)
     return (x < width && y < height && x >= 0 && c < channels && y >= 0 && c >= 0) ? data[y*width*channels + x*channels + c] : 0;
 }
 
+/* applyKuwahara(int a)
+ * 
+ * PURPOSE:
+ * Applies a Kuwahara filter to the image
+ * 
+ * INPUT:
+ * float a: unused
+ * 
+ * EXPECTATIONS:
+ * n/a
+ *
+ * NOTE: 
+ * n/a
+ * 
+ * OUTPUT:
+ * Applies kuwahara filter to global image: char* data 
+ * 
+ */
+
 bool Frame::applyKuwahara(int a)
 {
     unsigned char *new_img = (unsigned char *)calloc(channels*width*height, sizeof(char));
@@ -1030,6 +1220,26 @@ bool Frame::applyKuwahara(int a)
     
     return true;
 }
+
+/* applyAnisotropicKuwahara(int radius, float q)
+ * 
+ * PURPOSE:
+ * Applies an anistropic kuwahara filter to image
+ * 
+ * INPUT:
+ * int radius: 
+ * float q:
+ * 
+ * EXPECTATIONS:
+ * n/a
+ *
+ * NOTE: 
+ * n/a
+ * 
+ * OUTPUT:
+ * Applies Kuwahara filter to global image: char* data 
+ * 
+ */
 
 //http://code.google.com/p/gpuakf/source/browse/glsl/akf_v2.glsl
 bool Frame::applyAnisotropicKuwahara(int radius, float q)
